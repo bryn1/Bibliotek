@@ -35,7 +35,10 @@ prefix, none of them an edit to the fork's own route/template files:
    boot; the bulk artifact that populates it is committed, deliberately,
    as data/bulk_books.jsonl.gz).
 
-3. /bibliotek/ PREFIX: nginx's generated location strips the /bibliotek/
+3. /bibliotek/ PREFIX (F-01, MC 1403.1): the URL prefix is CONFIGURABLE via
+   BIBLIOTEK_URL_PREFIX -- default EMPTY, i.e. local dev serves at the root
+   with no rewriting at all; production sets BIBLIOTEK_URL_PREFIX=/bibliotek.
+   In prefix mode nginx's generated location strips the /bibliotek/
    prefix before proxying (proxy_pass ... trailing "/" against a
    location /bibliotek/ {} block is a standard nginx prefix-replace
    rewrite), so the app itself never sees it. Unlike hotell/rocket, this
@@ -47,8 +50,11 @@ prefix, none of them an edit to the fork's own route/template files:
    return-book issue (Location: /, /login, /loans -- no prefix). A small
    Starlette middleware below rewrites both: HTML response bodies'
    href=/src=/action="/..." attributes, and redirect responses' Location
-   headers, to carry the /bibliotek prefix. Contained entirely in this
-   file -- zero edits to src/ or templates/.
+   headers, to carry the configured prefix. Contained entirely in this
+   file -- zero edits to src/ or templates/. The same middleware also
+   STRIPS the prefix from incoming request paths before routing, so the
+   same paths are reachable both at the root (nginx-strip deployments)
+   and under the prefix (local prefix-mode checks, where no nginx runs).
 
 4. FETCH-PREFIX (MC 1095.3, T1r fix): the middleware above only reached
    HTML attributes -- it did NOT reach the loan flow's client-side
@@ -68,10 +74,10 @@ prefix, none of them an edit to the fork's own route/template files:
 
 With no $STATE_DIRECTORY (local dev) behavior is unchanged: DATABASE_URL
 keeps its in-repo default; catalog population is entirely src.app's own
-job now (bulk import if the artifact is present, else the demo seed), no
-prefix rewrite (PREFIX middleware is still installed but harmless --
-there's no proxy stripping anything locally, and the rewrite is
-idempotent/only touches bare "/..." paths and fetch('/...') literals).
+job now (bulk import if the artifact is present, else the demo seed). With
+no BIBLIOTEK_URL_PREFIX (the local-dev default) the prefix middleware is
+installed but inert: nothing is stripped from request paths and nothing is
+rewritten in responses.
 """
 import os
 import re
@@ -83,7 +89,10 @@ sys.path.insert(0, APP_DIR)
 
 PORT = 8140          # MUST match the `port` field in apps.yaml for apps/bibliotek
 HOST = "127.0.0.1"   # renderer's hardened unit binds the service to loopback
-PREFIX = "/bibliotek"
+# F-01 (MC 1403.1): URL prefix, read from the environment. Empty (the
+# default) = local dev at the root, no rewriting; production sets
+# BIBLIOTEK_URL_PREFIX=/bibliotek. No trailing slash.
+PREFIX = os.environ.get("BIBLIOTEK_URL_PREFIX", "").rstrip("/")
 
 STATE_DIR = os.environ.get("STATE_DIRECTORY")
 
@@ -91,13 +100,10 @@ if STATE_DIR:
     db_path = os.path.join(STATE_DIR, "bibliotek.db")
     os.environ.setdefault("DATABASE_URL", f"sqlite:///{db_path}")
 
-# POC (owner ruling 2026-09-07): never fail to boot. The mc-743.1-hardened
-# src/config.py demands SECRET_KEY (>=16) + JWT_EXPIRE_HOURS at import time;
-# this is a throwaway public-demo, so give them deterministic POC defaults
-# here (survivable because open-login is the accepted design). A real env
-# var set elsewhere still overrides via setdefault's "only if unset" rule.
-os.environ.setdefault("SECRET_KEY", "poc-demo-bibliotek-secret-key-2026")
-os.environ.setdefault("JWT_EXPIRE_HOURS", "24")
+# No SECRET_KEY fallback here (F-03): src/config.py demands SECRET_KEY (>=16)
+# + JWT_EXPIRE_HOURS at import time and MUST be allowed to fail loudly when
+# they are absent — a hardcoded fallback secret public in the repo enables
+# forged admin JWTs. Set them in the environment or a .env file.
 
 import uvicorn  # noqa: E402
 from starlette.middleware.base import BaseHTTPMiddleware  # noqa: E402
@@ -111,12 +117,15 @@ from src.app import app  # noqa: E402  (import after DATABASE_URL is set above)
 
 # Rewrites bare absolute paths in HTML attributes: href="/static/..",
 # src="/app.js", action="/catalog". The negative lookahead keeps an
-# already-prefixed "/bibliotek/x" (or a bare "/bibliotek") from being
-# double-prefixed, so the rewrite is idempotent.
-_ATTR_RE = re.compile(rb'(href|src|action)="(/(?!bibliotek(?:/|"))[^"]*)"')
+# already-prefixed path from being double-prefixed, so the rewrite is
+# idempotent. Built from the configured prefix (empty prefix = inert).
+def _attr_re(prefix: str):
+    p = re.escape(prefix.lstrip("/"))
+    return re.compile(rb'(href|src|action)="(/(?!%s(?:/|"))[^"]*)"' % p.encode())
+
 
 # Rewrites the string-literal path argument of client-side fetch() calls --
-# the piece _ATTR_RE cannot see, because they live inside <script> bodies
+# the piece _attr_re cannot see, because they live inside <script> bodies
 # and .js files, not in HTML attributes. Both the checkout flow
 # (book_detail.html) and the return flow (loans.html) drive the loan
 # lifecycle with fetch('/api/loans/...'), and the shared api() helper in
@@ -124,20 +133,20 @@ _ATTR_RE = re.compile(rb'(href|src|action)="(/(?!bibliotek(?:/|"))[^"]*)"')
 # Same idempotent negative lookahead. Single-quoted only: that is the
 # form every fetch() call in this app uses (grepped).
 # Group 1 = `fetch('` literal, group 2 = the bare path, group 3 = `'`.
-_FETCH_RE = re.compile(rb"(\bfetch\s*\(\s*')(/(?!bibliotek(?:/|\"))[^']*)(')")
-
-
-def _rewrite_path(m) -> bytes:
-    """Prefix the captured bare /... path (group 2) with the /bibliotek prefix."""
-    return m.group(1) + b"/bibliotek" + m.group(2) + m.group(3)
+def _fetch_re(prefix: str):
+    p = re.escape(prefix.lstrip("/"))
+    return re.compile(rb"(\bfetch\s*\(\s*')(/(?!%s(?:/|\"))[^']*)(')" % p.encode())
 
 
 class PathPrefixMiddleware(BaseHTTPMiddleware):
-    """Rewrite hardcoded absolute href=/src=/action="/..." attributes in
+    """When a prefix is configured: strip it from incoming request paths
+    before routing (so the same paths are reachable under the prefix, e.g.
+    in local prefix-mode checks where no nginx strips anything), and
+    rewrite hardcoded absolute href=/src=/action="/..." attributes in
     HTML responses and fetch('/...') literals in HTML <script> bodies and
     static .js files, plus redirect Location headers, to carry the
-    /bibliotek prefix nginx strips before proxying -- see module
-    docstring points 3 and 4."""
+    prefix -- see module docstring points 3 and 4. With an empty prefix
+    (local dev default) the middleware is inert."""
 
     def __init__(self, app, prefix: str):
         # MC#2317 pin refresh (fastapi 0.115.0) pulls in a newer Starlette whose
@@ -149,9 +158,17 @@ class PathPrefixMiddleware(BaseHTTPMiddleware):
         # so the param is renamed to match Starlette's real contract instead
         # of re-pinning starlette to dodge it.
         super().__init__(app)
-        self.prefix = prefix  # "/bibliotek", no trailing slash
+        self.prefix = prefix  # e.g. "/bibliotek", no trailing slash
+        self._attr_re = _attr_re(prefix)
+        self._fetch_re = _fetch_re(prefix)
 
     async def dispatch(self, request, call_next):
+        if self.prefix and request.scope.get("path", "").startswith(self.prefix):
+            # Strip the configured prefix so the app's root-level routes
+            # handle the request (mirrors what nginx does in production).
+            stripped = request.scope["path"][len(self.prefix):] or "/"
+            request.scope["path"] = stripped
+
         response = await call_next(request)
 
         loc = response.headers.get("location")
@@ -164,13 +181,16 @@ class PathPrefixMiddleware(BaseHTTPMiddleware):
         # text/javascript / application/javascript = the static .js files
         # (app.js etc.) served as-is, which the previous middleware never
         # touched. The "<javascript>" matches both spellings browsers send.
-        if "text/html" in content_type or "javascript" in content_type:
+        if self.prefix and ("text/html" in content_type or "javascript" in content_type):
             body = b"".join([chunk async for chunk in response.body_iterator])
-            new_body = _ATTR_RE.sub(
+            new_body = self._attr_re.sub(
                 lambda m: m.group(1) + b'="' + self.prefix.encode() + m.group(2) + b'"',
                 body,
             )
-            new_body = _FETCH_RE.sub(_rewrite_path, new_body)
+            new_body = self._fetch_re.sub(
+                lambda m: m.group(1) + self.prefix.encode() + m.group(2) + m.group(3),
+                new_body,
+            )
             headers = dict(response.headers)
             headers["content-length"] = str(len(new_body))
             response = StarletteResponse(

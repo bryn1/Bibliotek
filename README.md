@@ -29,9 +29,21 @@ SECRET_KEY="byt-till-en-riktig-hemlighet-16+" JWT_EXPIRE_HOURS=24 \
 
 Öppna `http://localhost:8140` i webbläsaren.
 
+### URL-prefix (`BIBLIOTEK_URL_PREFIX`)
+
+Lokalt körs appen på roten (`/`) — inga länkar skrivs om. Bakom en proxy
+som inte strippar prefixet (t.ex. produktionens `/bibliotek/`) sätts
+miljövariabeln, och servern skriver då om länkar, `fetch()`-anrop och
+redirects samt tar emot sökvägar både med och utan prefixet:
+
+```bash
+BIBLIOTEK_URL_PREFIX=/bibliotek SECRET_KEY="byt-till-en-riktig-hemlighet-16+" \
+    JWT_EXPIRE_HOURS=24 python server.py
+```
+
 ## Test
 
 ```bash
-SECRET_KEY="test-secret" JWT_EXPIRE_HOURS=24 ENABLE_DEMO_WRITE_GUARD=false \
+SECRET_KEY="lokal-test-nyckel-16+" JWT_EXPIRE_HOURS=24 ENABLE_DEMO_WRITE_GUARD=false \
     python -m pytest tests/ -v
 ```
