@@ -36,6 +36,7 @@
   <section class="panel create-staff-panel" id="createStaffPanel" aria-labelledby="createStaffTitle" hidden>
     <h3 id="createStaffTitle">Lägg till personal</h3>
     <form method="post" action="/admin/personal" class="create-staff-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <div class="form-group">
         <label for="staffUsername">Användarnamn</label>
         <input type="text" id="staffUsername" name="username" required
@@ -100,6 +101,7 @@
             <td data-label="Åtgärder">
               <form method="post" action="/admin/personal/{{ person.id }}"
                     class="row-edit-form" onsubmit="return adminConfirmEdit()">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <input type="hidden" name="user_id" value="{{ person.id }}">
                 <label class="sr-only" for="email-{{ person.id }}">E-post för {{ person.username }}</label>
                 <input type="email" id="email-{{ person.id }}" name="email"

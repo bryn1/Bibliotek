@@ -3,7 +3,7 @@
 
 {% block content %}
 <h1 style="font-family:var(--font-serif);color:var(--clr-primary);margin-bottom:.25rem">Bokkatalog</h1>
-<p style="color:var(--clr-text-muted);margin-bottom:1rem">{{ total }} böcker — sida {{ page }}/{{ pages }}</p>
+<p style="color:var(--clr-text-muted);margin-bottom:1rem">{{ total }} {% if total == 1 %}bok{% else %}böcker{% endif %} — sida {{ page }}/{{ pages }}</p>
 
 <!-- Sök -->
 <form action="/catalog" method="get" style="margin-bottom:1rem">
@@ -70,17 +70,19 @@
 
 <!-- Paginering -->
 <div style="display:flex;justify-content:center;align-items:center;gap:1rem;margin-top:2rem;flex-wrap:wrap">
+   {% if page > 1 %}
    <a href="?page={{ page - 1 }}{% if q %}&q={{ q }}{% endif %}{% if category %}&category={{ category }}{% endif %}{% if language %}&language={{ language }}{% endif %}"
-     class="btn btn-secondary"
-     {% if page <= 1 %}style="opacity:.4;pointer-events:none"{% endif %}>← Föregående</a>
+     class="btn btn-secondary">← Föregående</a>
+   {% endif %}
 
   <span style="font-size:.9rem;color:var(--clr-text-muted)">
     Sida {{ page }} av {{ pages }}
   </span>
 
-  <a href="?page={{ page + 1 }}{% if q %}&q={{ q }}{% endif %}{% if category %}&category={{ category }}{% endif %}{% if language %}&language={{ language }}{% endif %}"
-     class="btn btn-primary"
-     {% if page >= pages %}style="opacity:.4;pointer-events:none"{% endif %}>Nästa →</a>
+   {% if page < pages %}
+   <a href="?page={{ page + 1 }}{% if q %}&q={{ q }}{% endif %}{% if category %}&category={{ category }}{% endif %}{% if language %}&language={{ language }}{% endif %}"
+     class="btn btn-primary">Nästa →</a>
+   {% endif %}
 </div>
 {% else %}
 <div class="card" style="text-align:center;padding:3rem">
