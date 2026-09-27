@@ -21,3 +21,11 @@
 || static/ | CSS/JS (camera scanner) | ✅ done + verified (job 22) |
 || tests/ | Unit + E2E tests | ✅ done + verified (job 23) |
 | **Server** | **Live on port 8140** | **✅ deployed (job 24)** |
+
+## Audit 2026-09-26 fix round (MC 1403.1)
+
+- Full audit (browser click-through + security/correctness children): verdict FIX; report in .tmp/audit-20260926/report.md
+- Owner ruling: open admin login is ratified PoC design (F-02 not a bug)
+- Fixed: F-01 configurable BIBLIOTEK_URL_PREFIX (59a7957), F-03 no JWT secret fallback (59a7957), F-04 CSRF fields on staff forms (ba4436e), F-11 pagination guards (ba4436e), F-05 dead admin.js fetch layer removed (80c3a4a)
+- Verified: 163/163 pytest PASS + live contract checks (prefix both modes, CSRF 403/303, zero admin.js console errors) — TEST verdict PASS
+- Known open: F-06 multi-ISBN barcode lookup, F-07 librarian→admin password reset, F-08 GET return mutation, F-09 books.html XSS, F-13 .audits/ root-locked

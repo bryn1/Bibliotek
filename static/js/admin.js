@@ -18,9 +18,10 @@
  *   GET    /api/users                  -> {"users": [ ... ], "total": n}
  *   PUT    /api/users/{id}             -> query params username|password|role|email
  *
- * CSRF: mutating calls send the page's <meta name="csrf-token"> value in the
- * X-CSRF-Token header, which src.csrf.verify_csrf double-submits against the
- * "csrf" cookie.
+ * CSRF: this file performs no mutating calls itself; server-rendered forms
+ * carry a csrf_token hidden field (src.csrf.verify_csrf double-submits it
+ * against the "csrf" cookie). Any future fetch-based mutation must send the
+ * page's <meta name="csrf-token"> value in the X-CSRF-Token header.
  */
 
 (function () {
