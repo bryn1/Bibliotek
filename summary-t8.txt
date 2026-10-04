@@ -7,6 +7,6 @@ T8: Deploy Bibkiotek on port 8140 — VERIFIED
 - POST /api/books (missing isbn) → 422 with proper error (verified)
 - GET /api/books → 200 with 4 books
 - 102/102 tests passing
-- GitHub: github.com/svarkor-ai/Bibkiotek
+- GitHub: github.com/bryn1/Bibkiotek
 - 9 source files, 7 templates, 2 static files
 - Evidence: live curl tests, pytest results, git log

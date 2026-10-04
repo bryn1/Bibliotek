@@ -30,7 +30,7 @@ class LibrisScraper:
     def __init__(self):
         self.session = requests.Session()
         self.session.headers.update({
-            "User-Agent": "Bibliotek-Scraper/1.0 (svarkor@svarkor-ai)",
+            "User-Agent": "Bibliotek-Scraper/1.0",
             "Accept": "application/json",
         })
 
@@ -288,7 +288,7 @@ class OpenLibraryScraper:
     def __init__(self):
         self.session = requests.Session()
         self.session.headers.update({
-            "User-Agent": "Bibliotek-Scraper/1.0 (svarkor@svarkor-ai)",
+            "User-Agent": "Bibliotek-Scraper/1.0",
             "Accept": "application/json",
         })
 

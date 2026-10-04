@@ -19,5 +19,5 @@ Server status:
 Tests: 102/102 passing
 All 9 source files implemented (database, models, auth, books, circulation, users, app, config)
 7 HTML templates, 2 static files
-GitHub: github.com/svarkor-ai/Bibkiotek
+GitHub: github.com/bryn1/Bibkiotek
 VERIFY_EXIT=0

@@ -13,7 +13,7 @@ class BookScraper:
         self.db_path = db_path
         self.session = requests.Session()
         self.session.headers.update({
-            "User-Agent": "Bibliotek-Scraper/1.0 (svarkor@svarkor-ai)",
+            "User-Agent": "Bibliotek-Scraper/1.0",
             "Accept": "application/json"
         })
         self.setup_database()

@@ -1,4 +1,4 @@
-# MC#2317 requirements for svarkor-ai/bibliotek -- exact pins (vm106 build gate: pkg==version only,
+# MC#2317 requirements for bryn1/bibliotek -- exact pins (vm106 build gate: pkg==version only,
 # no ranges, no extras, no inline comments; <=20 pins, <=4096 bytes).
 #
 # 743.13 (S8, 2026-08-31): bumped to patched releases after pip-audit 2.10.1 flagged
